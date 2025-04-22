@@ -16,6 +16,7 @@
     <ProjectGuid>{4921de59-b8e4-4e64-931f-8789bf94eb83}</ProjectGuid>
     <RootNamespace>CG20001</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>CG2_00_03</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
