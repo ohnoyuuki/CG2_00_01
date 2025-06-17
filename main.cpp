@@ -107,7 +107,7 @@ IDxcBlob* CompileShader
 )
 {
 	//これからシェーダをコンバイルｓる旨をログに出す
-	Log(ConvertString(std::format(L"Compile Succeeded,path:{},profile{}\n", filePath, profile)));
+	Log(ConvertString(std::format(L" Begin CompileShader,path:{},profile{}\n", filePath, profile)));
 	//hlslファイルを読む
 	IDxcBlobEncoding* shaderSource = nullptr;
 	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
@@ -394,7 +394,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	ID3DBlob* signatureBlob = nullptr;
 	ID3DBlob* errorBlob = nullptr;
 	hr = D3D12SerializeRootSignature(&descriptionRootSignature,
-		D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+	D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
 	if (FAILED(hr))
 	{
 		Log(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
@@ -402,7 +402,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	}
 	//バイナリを元に生成
 	ID3D12RootSignature* rootSignature = nullptr;
-	hr = device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), 
+	hr = device->CreateRootSignature(0,
+	signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), 
 	IID_PPV_ARGS(&rootSignature));
 	assert(SUCCEEDED(hr));
 
@@ -415,17 +416,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
+
+
 	//BlendStateの設定
 	D3D12_BLEND_DESC blendDesc{};
 	//すべての色要素を書き込む
 	blendDesc.RenderTarget[0].RenderTargetWriteMask =
 	D3D12_COLOR_WRITE_ENABLE_ALL;
+
+
 	//RasiterZerStateの設定
 	D3D12_RASTERIZER_DESC rasterizeDesc{};
 	//裏面（時計周り）を表示しない
 	rasterizeDesc.CullMode = D3D12_CULL_MODE_BACK;
 	//三角形の中を塗りつぶす
 	rasterizeDesc.FillMode = D3D12_FILL_MODE_SOLID;
+
+
 	//shaderをコンバイルする
 	IDxcBlob* vertexShaderBlob = CompileShader(L"Object3D.VS.hlsl",
 	L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
@@ -434,7 +441,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	IDxcBlob* pixelShaderBlob = CompileShader(L"Object3D.PS.hlsl",
 	L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
 	assert(pixelShaderBlob != nullptr);
-
 
 	//PSOを生成する//P38
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelinStateDesc{};
@@ -451,7 +457,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	graphicsPipelinStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	//利用するトボロジ（形状）のタイプ。三角形
 	graphicsPipelinStateDesc.PrimitiveTopologyType =
-	D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+	D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	//どのように画面に色を打ち込むかの設定（気にしなくて良い）
 	graphicsPipelinStateDesc.SampleDesc.Count = 1;
 	graphicsPipelinStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
@@ -527,29 +533,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	scissorRect.bottom = kClientHeight;
 
 
-	//コマンドを積む
-	commandList->RSSetViewports(1, &viewport);//viewportを設定
-	commandList->RSSetScissorRects(1, &scissorRect);//Scirssorを設定
-	//RootSignatureを設定。PSOに設定しているけど別途設定が必要
-	commandList->SetGraphicsRootSignature(rootSignature);
-	commandList->SetPipelineState(graphicsPipelineState);//PSOを設定
-	commandList->IASetVertexBuffers(0, 1, &vertexBufferView);//VBVを設定
-	//形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけばいいい
-	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	//描画!(DrawCall/ドローコル）。３頂点で一つのインスタンス。インスタンスについては今後
-	commandList->DrawInstanced(3, 1, 0, 0);
+	
 
-	//解放処理
-	vertexResource->Release();
-	graphicsPipelineState->Release();
-	signatureBlob->Release();
-	if(errorBlob)
-	{
-		errorBlob->Release();
-	}
-	rootSignature->Release();
-	pixelShaderBlob->Release();
-	vertexShaderBlob->Release();
+	
 
 
 	MSG msg{};
@@ -564,70 +550,86 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		} else
 		{
 			//ゲームの処理
-		}
-
+				//更新処理をかく
 		//これからもよろしくお願いします。
-		UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-		// TransitionBarrierの設定
-		D3D12_RESOURCE_BARRIER barrier{};
-		// 今回のバリアはTransition
-		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		// Noneにしておく
-		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		// バリアを張る対象のリソース。現在のバックバッファに対して行う
-		barrier.Transition.pResource = swapChainResources[backBufferIndex];
-		// 遷移前（現在）のResourceState
-		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-		// 遷移後のResourceState
-		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		// TransitionBarrierを張る
-		commandList->ResourceBarrier(1, &barrier);
+			// TransitionBarrierの設定
+			D3D12_RESOURCE_BARRIER barrier{};
+			// 今回のバリアはTransition
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			// Noneにしておく
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			// バリアを張る対象のリソース。現在のバックバッファに対して行う
+			barrier.Transition.pResource = swapChainResources[backBufferIndex];
+			// 遷移前（現在）のResourceState
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			// 遷移後のResourceState
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			// TransitionBarrierを張る
+			commandList->ResourceBarrier(1, &barrier);
 
-		//描画先のRTVを設定する
-		commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
-		//指定した色で画面全体をクリアする
-		float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
-		commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+			//描画先のRTVを設定する
+			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
+			//指定した色で画面全体をクリアする
+			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
+			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
-		// 今回はRenderTargetからPresentにする
-		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-		// TransitionBarrierを張る
-		commandList->ResourceBarrier(1, &barrier);
 
-		//コマンドリストの内容を確定させる。すべてのコマンドを積んでからCloseすること
-		hr = commandList->Close();
-		assert(SUCCEEDED(hr));
+			//コマンドを積む
+			commandList->RSSetViewports(1, &viewport);//viewportを設定
+			commandList->RSSetScissorRects(1, &scissorRect);//Scirssorを設定
+			//RootSignatureを設定。PSOに設定しているけど別途設定が必要
+			commandList->SetGraphicsRootSignature(rootSignature);
+			commandList->SetPipelineState(graphicsPipelineState);//PSOを設定
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);//VBVを設定
+			//形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけばいいい
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			//描画!(DrawCall/ドローコル）。３頂点で一つのインスタンス。インスタンスについては今後
+			commandList->DrawInstanced(3, 1, 0, 0);
 
-		//GPUにコマンドリストの実行を行わせる
-		ID3D12CommandList* commandLists[] = { commandList };
-		commandQueue->ExecuteCommandLists(1, commandLists);
-		//GPUとOSに画面の交換を行うよう追加する
-		swapChain->Present(1, 0);
 
-		// Fenceの値を更新
-		fenceValue++;
 
-		// GPUがここまでたどり着いたときに、
-		// Fenceの値を指定した値に代入するようにSignalを送る
-		commandQueue->Signal(fence, fenceValue);
+			// 今回はRenderTargetからPresentにする
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+			// TransitionBarrierを張る
+			commandList->ResourceBarrier(1, &barrier);
 
-		// Fenceの値が指定したSignal値にたどり着いているか確認する
-		// GetCompletdValueの初期化はFence作成時に渡した初期値
-		if (fence->GetCompletedValue() < fenceValue) {
-			// 指定したSignalにたどり着いいていないので、
-			// たどり着くまで待つようにイベントを設定する
-			fence->SetEventOnCompletion(fenceValue, fenceEvent);
-			// イベントを待つ
-			WaitForSingleObject(fenceEvent, INFINITE);
+			//コマンドリストの内容を確定させる。すべてのコマンドを積んでからCloseすること
+			hr = commandList->Close();
+			assert(SUCCEEDED(hr));
+
+			//GPUにコマンドリストの実行を行わせる
+			ID3D12CommandList* commandLists[] = { commandList };
+			commandQueue->ExecuteCommandLists(1, commandLists);
+			//GPUとOSに画面の交換を行うよう追加する
+			swapChain->Present(1, 0);
+
+			// Fenceの値を更新
+			fenceValue++;
+
+			// GPUがここまでたどり着いたときに、
+			// Fenceの値を指定した値に代入するようにSignalを送る
+			commandQueue->Signal(fence, fenceValue);
+
+			// Fenceの値が指定したSignal値にたどり着いているか確認する
+			// GetCompletdValueの初期化はFence作成時に渡した初期値
+			if (fence->GetCompletedValue() < fenceValue) {
+				// 指定したSignalにたどり着いいていないので、
+				// たどり着くまで待つようにイベントを設定する
+				fence->SetEventOnCompletion(fenceValue, fenceEvent);
+				// イベントを待つ
+				WaitForSingleObject(fenceEvent, INFINITE);
+			}
+
+			//次のフレーム用のコマンドリストを準備
+			hr = commandAllocator->Reset();
+			assert(SUCCEEDED(hr));
+			hr = commandList->Reset(commandAllocator, nullptr);
+			assert(SUCCEEDED(hr));
 		}
-
-		//次のフレーム用のコマンドリストを準備
-		hr = commandAllocator->Reset();
-		assert(SUCCEEDED(hr));
-		hr = commandList->Reset(commandAllocator, nullptr);
-		assert(SUCCEEDED(hr));
+	
 
 #ifdef _DEBUG
 		ID3D12InfoQueue* infoQueue = nullptr;
@@ -657,6 +659,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 			// 解放
 			infoQueue->Release();
+
+
 		}
 #endif
 
@@ -664,6 +668,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	}
 
 	CloseHandle(fenceEvent);
+
+	//解放処理
+	vertexResource->Release();
+	graphicsPipelineState->Release();
+	signatureBlob->Release();
+	if (errorBlob)
+	{
+		errorBlob->Release();
+	}
+	rootSignature->Release();
+	pixelShaderBlob->Release();
+	vertexShaderBlob->Release();
+
 	fence->Release();
 	rtvDescriptorHeap->Release();
 	swapChainResources[0]->Release();
