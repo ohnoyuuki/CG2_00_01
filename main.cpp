@@ -10,8 +10,7 @@
 #include"externals/imgui/imgui.h"
 #include"externals/imgui/imgui_impl_dx12.h"
 #include"externals/imgui/imgui_impl_win32.h"
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WindProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -32,7 +31,7 @@ struct Vector4
 //ウィンドウプロシージャ
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-	if(ImGui_ImplWin32_WindProcHandler(hwnd,msg,wparam,lparam))
+	if(ImGui_ImplWin32_WndProcHandler(hwnd,msg,wparam,lparam))
 	{
 		return true;
 	}
