@@ -599,6 +599,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//今回は赤を書き込んでみる
 	*materialData = Vector4(1.0f, 0.0f, 0.0f, 1.0f);
 
+	//ImGuiの初期化。詳細はさして重要ではないので解説は省略する。
+	//こういうもんである
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplWin32_Init(hwnd);
+	ImGui_ImplDX12_Init(device,
+		swapChainDesc.BufferCount,
+		rtvDesc.Format,
+		srvDescriptorHeap,
+		srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
 
 	MSG msg{};
 	//ウィンドウの×ボタンが押されるまでループ
@@ -612,6 +625,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		} else
 		{
 			//ゲームの処理
+			//フレームが始まる旨を告げる
+			ImGui_ImplDX12_NewFrame();
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
+
+
+
+
+			//開発用UIの処理。実際に開発用のUIを出す場合はここをゲーム固有の処理に置き換える
+			ImGui::ShowDemoWindow();
+
+			ImGui::Begin("Settings");
+			ImGui::ColorEdit4("material", &materialData->x, ImGuiColorEditFlags_AlphaPreview);
+			ImGui::End();
+
+			//ImGuiの内部コマンドを生成する
+			ImGui::Render();
+		
 				//更新処理をかく
 		//これからもよろしくお願いします。
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
@@ -637,6 +668,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
 			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
+			//描画用のDescriptorHeapの設定
+			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap };
+			commandList->SetDescriptorHeaps(1, descriptorHeaps);
+
 
 			//コマンドを積む
 			commandList->RSSetViewports(1, &viewport);//viewportを設定
@@ -654,6 +689,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			//描画!(DrawCall/ドローコル）。３頂点で一つのインスタンス。インスタンスについては今後
 			commandList->DrawInstanced(3, 1, 0, 0);
 
+
+			//実際のcommandListのImGuiの描画コマンドを積む
+			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
 
 			// 今回はRenderTargetからPresentにする
@@ -734,6 +772,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	}
 
 	CloseHandle(fenceEvent);
+
+
+	//ImGuiの終了処理。詳細はさして重要ではないので解説は省略する。
+	//こういうもんである。初期化と逆順に行う
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
 
 	//解放処理
 	vertexResource->Release();
